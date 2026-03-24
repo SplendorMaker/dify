@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import services.summary_index_service as summary_module
+from core.rag.index_processor.constant.index_type import IndexStructureType
 from models.enums import SegmentStatus, SummaryStatus
 from services.summary_index_service import SummaryIndexService
 
@@ -48,7 +49,7 @@ def _segment(*, has_document: bool = True) -> MagicMock:
     if has_document:
         doc = MagicMock(name="document")
         doc.doc_language = "en"
-        doc.doc_form = "text_model"
+        doc.doc_form = IndexStructureType.PARAGRAPH_INDEX
         segment.document = doc
     else:
         segment.document = None
@@ -189,7 +190,7 @@ def test_vectorize_summary_retries_connection_errors_then_succeeds(monkeypatch: 
     embedding_model.get_text_embedding_num_tokens.return_value = [5]
     model_manager = MagicMock()
     model_manager.get_model_instance.return_value = embedding_model
-    monkeypatch.setattr(summary_module, "ModelManager", MagicMock(return_value=model_manager))
+    monkeypatch.setattr(summary_module.ModelManager, "for_tenant", MagicMock(return_value=model_manager))
 
     vector_instance = MagicMock()
     vector_instance.add_texts.side_effect = [RuntimeError("connection timeout"), None]
@@ -228,7 +229,7 @@ def test_vectorize_summary_without_session_creates_record_when_missing(monkeypat
 
     model_manager = MagicMock()
     model_manager.get_model_instance.side_effect = RuntimeError("no model")
-    monkeypatch.setattr(summary_module, "ModelManager", MagicMock(return_value=model_manager))
+    monkeypatch.setattr(summary_module.ModelManager, "for_tenant", MagicMock(return_value=model_manager))
 
     # New session used after vectorization succeeds (record not found by id nor chunk_id).
     session = MagicMock(name="session")
@@ -405,8 +406,8 @@ def test_vectorize_summary_updates_existing_record_found_by_chunk_id(monkeypatch
     vector_instance.add_texts.return_value = None
     monkeypatch.setattr(summary_module, "Vector", MagicMock(return_value=vector_instance))
     monkeypatch.setattr(
-        summary_module,
-        "ModelManager",
+        summary_module.ModelManager,
+        "for_tenant",
         MagicMock(return_value=MagicMock(get_model_instance=MagicMock(return_value=None))),
     )
 
@@ -439,8 +440,8 @@ def test_vectorize_summary_updates_existing_record_found_by_id(monkeypatch: pyte
         summary_module, "Vector", MagicMock(return_value=MagicMock(add_texts=MagicMock(return_value=None)))
     )
     monkeypatch.setattr(
-        summary_module,
-        "ModelManager",
+        summary_module.ModelManager,
+        "for_tenant",
         MagicMock(return_value=MagicMock(get_model_instance=MagicMock(return_value=None))),
     )
 
@@ -472,8 +473,8 @@ def test_vectorize_summary_session_enter_returns_none_triggers_runtime_error(mon
         summary_module, "Vector", MagicMock(return_value=MagicMock(add_texts=MagicMock(return_value=None)))
     )
     monkeypatch.setattr(
-        summary_module,
-        "ModelManager",
+        summary_module.ModelManager,
+        "for_tenant",
         MagicMock(return_value=MagicMock(get_model_instance=MagicMock(return_value=None))),
     )
 
@@ -508,8 +509,8 @@ def test_vectorize_summary_created_record_becomes_none_triggers_guard(monkeypatc
         summary_module, "Vector", MagicMock(return_value=MagicMock(add_texts=MagicMock(return_value=None)))
     )
     monkeypatch.setattr(
-        summary_module,
-        "ModelManager",
+        summary_module.ModelManager,
+        "for_tenant",
         MagicMock(return_value=MagicMock(get_model_instance=MagicMock(return_value=None))),
     )
 
@@ -623,13 +624,13 @@ def test_generate_summaries_for_document_skip_conditions(monkeypatch: pytest.Mon
     dataset = _dataset(indexing_technique="economy")
     document = MagicMock(spec=summary_module.DatasetDocument)
     document.id = "doc-1"
-    document.doc_form = "text_model"
+    document.doc_form = IndexStructureType.PARAGRAPH_INDEX
     assert SummaryIndexService.generate_summaries_for_document(dataset, document, {"enable": True}) == []
 
     dataset = _dataset()
     assert SummaryIndexService.generate_summaries_for_document(dataset, document, {"enable": False}) == []
 
-    document.doc_form = "qa_model"
+    document.doc_form = IndexStructureType.QA_INDEX
     assert SummaryIndexService.generate_summaries_for_document(dataset, document, {"enable": True}) == []
 
 
@@ -637,7 +638,7 @@ def test_generate_summaries_for_document_runs_and_handles_errors(monkeypatch: py
     dataset = _dataset()
     document = MagicMock(spec=summary_module.DatasetDocument)
     document.id = "doc-1"
-    document.doc_form = "text_model"
+    document.doc_form = IndexStructureType.PARAGRAPH_INDEX
 
     seg1 = _segment()
     seg2 = _segment()
@@ -673,7 +674,7 @@ def test_generate_summaries_for_document_no_segments_returns_empty(monkeypatch: 
     dataset = _dataset()
     document = MagicMock(spec=summary_module.DatasetDocument)
     document.id = "doc-1"
-    document.doc_form = "text_model"
+    document.doc_form = IndexStructureType.PARAGRAPH_INDEX
 
     session = MagicMock()
     query = MagicMock()
@@ -696,7 +697,7 @@ def test_generate_summaries_for_document_applies_segment_ids_and_only_parent_chu
     dataset = _dataset()
     document = MagicMock(spec=summary_module.DatasetDocument)
     document.id = "doc-1"
-    document.doc_form = "text_model"
+    document.doc_form = IndexStructureType.PARAGRAPH_INDEX
     seg = _segment()
 
     session = MagicMock()
@@ -935,7 +936,7 @@ def test_update_summary_for_segment_skip_conditions() -> None:
         SummaryIndexService.update_summary_for_segment(_segment(), _dataset(indexing_technique="economy"), "x") is None
     )
     seg = _segment(has_document=True)
-    seg.document.doc_form = "qa_model"
+    seg.document.doc_form = IndexStructureType.QA_INDEX
     assert SummaryIndexService.update_summary_for_segment(seg, _dataset(), "x") is None
 
 

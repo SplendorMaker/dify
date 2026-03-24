@@ -25,7 +25,7 @@ from controllers.console.wraps import (
 )
 from core.errors.error import LLMBadRequestError, ProviderTokenNotInitError
 from core.indexing_runner import IndexingRunner
-from core.provider_manager import ProviderManager
+from core.plugin.impl.model_runtime_factory import create_plugin_provider_manager
 from core.rag.datasource.vdb.vector_type import VectorType
 from core.rag.extractor.entity.datasource_type import DatasourceType
 from core.rag.extractor.entity.extract_setting import ExtractSetting, NotionInfo, WebsiteInfo
@@ -54,7 +54,7 @@ from fields.document_fields import document_status_fields
 from libs.login import current_account_with_tenant, login_required
 from models import ApiToken, Dataset, Document, DocumentSegment, UploadFile
 from models.dataset import DatasetPermission, DatasetPermissionEnum
-from models.enums import SegmentStatus
+from models.enums import ApiTokenType, SegmentStatus
 from models.provider_ids import ModelProviderID
 from services.api_token_service import ApiTokenCache
 from services.dataset_service import DatasetPermissionService, DatasetService, DocumentService
@@ -331,7 +331,7 @@ class DatasetListApi(Resource):
             )
 
         # check embedding setting
-        provider_manager = ProviderManager()
+        provider_manager = create_plugin_provider_manager(tenant_id=current_tenant_id)
         configurations = provider_manager.get_configurations(tenant_id=current_tenant_id)
 
         embedding_models = configurations.get_models(model_type=ModelType.TEXT_EMBEDDING, only_active=True)
@@ -445,7 +445,7 @@ class DatasetApi(Resource):
             data.update({"partial_member_list": part_users_list})
 
         # check embedding setting
-        provider_manager = ProviderManager()
+        provider_manager = create_plugin_provider_manager(tenant_id=current_tenant_id)
         configurations = provider_manager.get_configurations(tenant_id=current_tenant_id)
 
         embedding_models = configurations.get_models(model_type=ModelType.TEXT_EMBEDDING, only_active=True)
@@ -777,7 +777,7 @@ class DatasetIndexingStatusApi(Resource):
 class DatasetApiKeyApi(Resource):
     max_keys = 10
     token_prefix = "dataset-"
-    resource_type = "dataset"
+    resource_type = ApiTokenType.DATASET
 
     @console_ns.doc("get_dataset_api_keys")
     @console_ns.doc(description="Get dataset API keys")
@@ -826,7 +826,7 @@ class DatasetApiKeyApi(Resource):
 
 @console_ns.route("/datasets/api-keys/<uuid:api_key_id>")
 class DatasetApiDeleteApi(Resource):
-    resource_type = "dataset"
+    resource_type = ApiTokenType.DATASET
 
     @console_ns.doc("delete_dataset_api_key")
     @console_ns.doc(description="Delete dataset API key")

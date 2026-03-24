@@ -28,6 +28,7 @@ from controllers.console.datasets.datasets import (
 from controllers.console.datasets.error import DatasetInUseError, DatasetNameDuplicateError, IndexingEstimateError
 from core.errors.error import LLMBadRequestError, ProviderTokenNotInitError
 from core.provider_manager import ProviderManager
+from core.rag.index_processor.constant.index_type import IndexStructureType
 from extensions.storage.storage_type import StorageType
 from models.enums import CreatorUserRole
 from models.model import ApiToken, UploadFile
@@ -416,7 +417,7 @@ class TestDatasetApiGet:
                 "check_dataset_permission",
                 return_value=None,
             ),
-            patch("controllers.console.datasets.datasets.ProviderManager") as provider_manager_mock,
+            patch("controllers.console.datasets.datasets.create_plugin_provider_manager") as provider_manager_mock,
         ):
             # embedding models exist → embedding_available stays True
             provider_manager_mock.return_value.get_configurations.return_value.get_models.return_value = []
@@ -520,7 +521,7 @@ class TestDatasetApiGet:
                 "check_dataset_permission",
                 return_value=None,
             ),
-            patch("controllers.console.datasets.datasets.ProviderManager") as provider_manager_mock,
+            patch("controllers.console.datasets.datasets.create_plugin_provider_manager") as provider_manager_mock,
         ):
             # embedding model NOT configured
             provider_manager_mock.return_value.get_configurations.return_value.get_models.return_value = []
@@ -579,7 +580,7 @@ class TestDatasetApiGet:
                 "get_dataset_partial_member_list",
                 return_value=partial_members,
             ),
-            patch("controllers.console.datasets.datasets.ProviderManager") as provider_manager_mock,
+            patch("controllers.console.datasets.datasets.create_plugin_provider_manager") as provider_manager_mock,
         ):
             provider_manager_mock.return_value.get_configurations.return_value.get_models.return_value = []
 
@@ -1146,7 +1147,7 @@ class TestDatasetIndexingEstimateApi:
             },
             "process_rule": {"chunk_size": 100},
             "indexing_technique": "high_quality",
-            "doc_form": "text_model",
+            "doc_form": IndexStructureType.PARAGRAPH_INDEX,
             "doc_language": "English",
             "dataset_id": None,
         }
