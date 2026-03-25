@@ -9,6 +9,7 @@ import { getLocaleOnServer } from '@/i18n-config/server'
 import { ToastProvider } from './components/base/toast'
 import { ToastHost } from './components/base/ui/toast'
 import { TooltipProvider } from './components/base/ui/tooltip'
+import PartnerStackCookieRecorder from './components/billing/partner-stack/cookie-recorder'
 import BrowserInitializer from './components/browser-initializer'
 import { AgentationLoader } from './components/devtools/agentation-loader'
 import { ReactScanLoader } from './components/devtools/react-scan/loader'
@@ -71,6 +72,7 @@ const LocaleLayout = async ({
                   <TanstackQueryInitializer>
                     <I18nServerProvider>
                       <ToastHost timeout={5000} limit={3} />
+                      <PartnerStackCookieRecorder />
                       <ToastProvider>
                         <GlobalPublicStoreProvider>
                           <TooltipProvider delay={300} closeDelay={200}>
